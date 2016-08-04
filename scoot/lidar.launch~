@@ -1,0 +1,54 @@
+<launch>
+
+<!-- Hokuyo Lidar-->
+  <node pkg="urg_node" type="urg_node" name="urg_node" output="screen">
+    <rosparam>
+      publish_intensity: true
+      angle_min: -2.2689 
+      angle_max: 2.2689 
+      cluster: 1
+      skip: 0
+      ip_address: 192.168.2.110
+      ip_port: 10940
+      serial_port: /dev/ttyACM0
+      frame_id: laser
+      calibrate_time: true
+      time_offset: 0.0
+      publish_multiecho: false
+
+    </rosparam>   
+  </node>
+
+<!-- SICK Lidar -->
+<arg name="host" default="192.168.2.102" />
+<node pkg="lms1xx" name="lms1xx" type="LMS1xx_node">
+<param name="host" value="$(arg host)" />
+<remap from="scan" to="scan2" />
+  </node>
+
+<!-- Combine lidar -->
+<node pkg="ira_laser_tools" name="laserscan_multi_merger" type="laserscan_multi_merger" output="screen">
+		<param name="destination_frame" value="base_link"/>
+		<param name="cloud_destination_topic" value="/merged_cloud"/>
+		<param name="scan_destination_topic" value="/scan_multi"/>
+                <param name="laserscan_topics" value ="scan scan2" /> <!-- LIST OF THE LASER SCAN TOPICS TO SUBSCRIBE -->
+	</node>
+
+
+<!-- TFs -->
+
+<!-- base_link tf: Center of scooter (Reference to wheel height) -->
+<node pkg="tf" type="static_transform_publisher" name="map_to_base_link" args="0 0 0.085 0 0 0 map base_link 100" />
+
+<!-- SICK Lidar tf -->
+<node pkg="tf" type="static_transform_publisher" name="base_link_to_s_laser" args="-0.46 0 1.68 0 0.3491 0 base_link laser2 100" />
+
+<!--
+<node pkg="tf" type="static_transform_publisher" name="h_laser_to_s_laser" args="-0.93 0.075 1.39 0 0.3491 0 laser laser2 100" />
+-->
+
+<!-- Hokuyo Lidar tf -->
+<node pkg="tf" type="static_transform_publisher" name="base_link_to_h_laser" args="0.47 -0.075 0.29 0 0 0 base_link laser 100" />
+</launch>
+
+

@@ -1,0 +1,1 @@
+set(CMAKE_CXX_FLAGS "-fwrapv ${CMAKE_CXX_FLAGS}")

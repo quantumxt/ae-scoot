@@ -169,7 +169,13 @@ void kangaroo::TwistCB(const geometry_msgs::TwistPtr &msg){
 
 	tcflush(fd, TCOFLUSH);
 
-	forw += vel_twist.linear.x*1500;
+	int threshold = 800;
+	if(vel_twist.linear.x>0){
+		forw = threshold;
+	}else if(vel_twist.linear.x<0){
+		forw = -threshold;
+	}
+
 	side += vel_twist.angular.z*3000;
 
 	//ROS_INFO("Vertical: %f", forw);		//Forward + back
@@ -187,13 +193,13 @@ void kangaroo::TwistCB(const geometry_msgs::TwistPtr &msg){
 	// lock the output_mutex
 	boost::mutex::scoped_lock output_lock(output_mutex);
 
-  //steerTest();
 	//Steering
 	set_channel_position(side, 128, '1', 10000);
+	//channelTest(2500,5,'2');
+
 	//Motor Speed
 	set_channel_position(forw, 128, '2', 10000);
-
-
+	//channelTest(1300,5,'2');
 }
 
 
@@ -247,7 +253,7 @@ void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 	//set_channel_speed(channel_1_speed, 128, '1', 10000);
 	//set_channel_speed(channel_2_sed, 128, '2', 10000);
 	set_channel_position(channel_1_position, 128, '1', 1000);
-	set_channel_position(channel_1_position, 128, '1', 1000);
+	set_channel_position(channel_1_position, 128, '2', 1000);
 
 }
 
@@ -510,31 +516,29 @@ int kangaroo::evaluate_kangaroo_response( unsigned char address, unsigned char* 
 	return value;
 }
 
-void kangaroo::steerTest(){
-	int limitT = 2500;
-	int intT = 5;
-	//Steer Test
-	for(int i=0;i<limitT;i+=intT){
-		set_channel_position(i, 128, '1', 10000);
+void kangaroo::channelTest(int lim, int step, char channel){
+	for(int i=0;i<lim;i+=step){
+		set_channel_position(i, 128, channel, 10000);
 		ROS_INFO("Pos %i",i);
 	}
-	for(int i=limitT;i>0;i-=intT){
-		set_channel_position(i, 128, '1', 10000);
+	for(int i=lim;i>0;i-=step){
+		set_channel_position(i, 128, channel, 10000);
 		ROS_INFO("Pos %i",i);
 
 	}
-	for(int i=0;i>-limitT;i-=intT){
-		set_channel_position(i, 128, '1', 10000);
+	for(int i=0;i>-lim;i-=step){
+		set_channel_position(i, 128, channel, 10000);
 		ROS_INFO("Pos %i",i);
 
 	}
 
-	for(int i=-limitT;i<1;i+=intT){
-		set_channel_position(i, 128, '1', 10000);
+	for(int i=-lim;i<1;i+=step){
+		set_channel_position(i, 128, channel, 10000);
 		ROS_INFO("Pos %i",i);
 
 	}
 }
+
 
 inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
 {

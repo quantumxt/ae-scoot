@@ -28,6 +28,8 @@ public:
 
 private:
 	bool is_open( ) const;
+
+	//Callback f(x)s
 	void TwistCB(const geometry_msgs::TwistPtr &msg);
 	void JointTrajCB( const trajectory_msgs::JointTrajectoryPtr &msg );
 
@@ -44,11 +46,13 @@ private:
 	int evaluate_kangaroo_response( uint8_t address, uint8_t* header, uint8_t* data, bool& ok);
 	void handle_errors(uint8_t address, int error_code);
 
+	//Steer Test
+	void steerTest();
+
 	// address of the serial port
 	std::string port;
 	// the number of lines of the encoder
 	int encoder_lines_per_revolution_steering;
-	int encoder_lines_per_revolution_backwheel;
 	//Wheel circumference
 	double circumference_of_wheels;
 

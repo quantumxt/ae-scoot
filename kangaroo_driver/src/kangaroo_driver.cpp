@@ -25,7 +25,6 @@ fd( -1 ),
 nh( _nh ),
 nh_priv( _nh_priv ),
 encoder_lines_per_revolution_steering(18000),
-encoder_lines_per_revolution_backwheel(18000),
 hz(50)
 
 //msg(new sensor_msgs::JointState)
@@ -129,7 +128,7 @@ bool kangaroo::start( )
 	return false;
 	ROS_INFO( "Starting" );
 
-	//Subscribe to twist
+	//Subscribe to cmd_vel (twist)
 	vel_sub = nh.subscribe( "cmd_vel", 3, &kangaroo::TwistCB, this );
 
 	if( !joint_traj_sub )
@@ -166,13 +165,15 @@ void kangaroo::TwistCB(const geometry_msgs::TwistPtr &msg){
 	float forw = 0;
 	float side = 0;
 
-	ROS_INFO("Vertical: %f", forw);		//Forward + back
-	ROS_INFO("Horizontal: %f", side);	//Left + Right
+
 
 	tcflush(fd, TCOFLUSH);
 
 	forw += vel_twist.linear.x*1500;
-	side += vel_twist.angular.z*1500;
+	side += vel_twist.angular.z*3000;
+
+	//ROS_INFO("Vertical: %f", forw);		//Forward + back
+	//ROS_INFO("Horizontal: %f", side);	//Left + Right
 
 	//double channel_1_position = msg->points[0].positions[ch1_idx];
 	//double channel_2_position = msg->points[0].positions[ch2_idx];
@@ -186,7 +187,8 @@ void kangaroo::TwistCB(const geometry_msgs::TwistPtr &msg){
 	// lock the output_mutex
 	boost::mutex::scoped_lock output_lock(output_mutex);
 
-	//Steer
+  //steerTest();
+	//Steering
 	set_channel_position(side, 128, '1', 10000);
 	//Motor Speed
 	set_channel_position(forw, 128, '2', 10000);
@@ -508,6 +510,32 @@ int kangaroo::evaluate_kangaroo_response( unsigned char address, unsigned char* 
 	return value;
 }
 
+void kangaroo::steerTest(){
+	int limitT = 2500;
+	int intT = 5;
+	//Steer Test
+	for(int i=0;i<limitT;i+=intT){
+		set_channel_position(i, 128, '1', 10000);
+		ROS_INFO("Pos %i",i);
+	}
+	for(int i=limitT;i>0;i-=intT){
+		set_channel_position(i, 128, '1', 10000);
+		ROS_INFO("Pos %i",i);
+
+	}
+	for(int i=0;i>-limitT;i-=intT){
+		set_channel_position(i, 128, '1', 10000);
+		ROS_INFO("Pos %i",i);
+
+	}
+
+	for(int i=-limitT;i<1;i+=intT){
+		set_channel_position(i, 128, '1', 10000);
+		ROS_INFO("Pos %i",i);
+
+	}
+}
+
 inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
 {
 	return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_steering);
@@ -516,7 +544,7 @@ inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
 
 inline double kangaroo::encoder_lines_to_meters( int encoder_lines )
 {
-	return (encoder_lines * circumference_of_wheels / encoder_lines_per_revolution_backwheel);
+	//return (encoder_lines * circumference_of_wheels / encoder_lines_per_revolution_backwheel);
 }
 
 inline int kangaroo::radians_to_encoder_lines( double radians )

@@ -55,10 +55,10 @@ int AttachHandler(CPhidgetHandle phid, void *userptr)
     CPhidget_DeviceID deviceID;
 
     CPhidget_getDeviceID(phid, &deviceID);
-    //CPhidget_getDeviceName (phid, &name);
-    //CPhidget_getSerialNumber(phid, &serial_number);
-    name="PhidgetEncoder";
-    serial_number=341852;
+    CPhidget_getDeviceName (phid, &name);
+    CPhidget_getSerialNumber(phid, &serial_number);
+    //name="PhidgetEncoder";
+    //serial_number=341852;
     ROS_INFO("%s Serial number %d attached!", name, serial_number);
 
     CPhidgetEncoder_getEncoderCount((CPhidgetEncoderHandle)phid, &inputcount);
@@ -118,7 +118,6 @@ int PositionChangeHandler(CPhidgetEncoderHandle ENC,
         //Motor speed for steering
         if(Index==0){
           encoder_pub_0.publish(e);
-
         }
         else if(Index==1){  //Speed of wheel
           encoder_pub_1.publish(e);

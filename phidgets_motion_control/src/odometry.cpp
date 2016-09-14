@@ -57,13 +57,14 @@ int encoder_direction_left = 1;
 int encoder_direction_right = -1;
 
 // distance between the wheel centres
-double wheelbase_mm = 305;
+double wheelbase_mm = 480;
 
-// how many ticks in a rev
-double ticks_per_rev = 3200;
+// how many ticks in a rev for wheel
+double ticks_per_rev = 746;
 
-// wheel diameter
-double wheel_diam_mm = 392.64;
+
+// back wheel diameter
+double wheel_diam_mm = 180;
 
 // friction
 
@@ -164,10 +165,16 @@ bool subscribe_to_encoders_by_index()
 	nh.getParam("topic_path", topic_path);
 	std::string encodername = "encoder";
 	nh.getParam("encodername", encodername);
-  	std::string encoder_topic_base = topic_path + encodername;
+  std::string encoder_topic_base = topic_path + encodername;
 	nh.getParam("encoder_topic", encoder_topic_base);
 
-	encoders_sub = n.subscribe(encoder_topic_base, 300, encoderCallback);
+	std::string encoder_topic_l = encoder_topic_base + "/enc_0";
+	std::string encoder_topic_r = encoder_topic_base + "/enc_1";
+
+
+	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
+	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
+
 
 	return(success);
 }
@@ -177,8 +184,8 @@ bool subscribe_to_encoders_by_index()
 void update_velocities(double dt) {
 
 	if((current_encoder_count_left - previous_encoder_count_left) == 0 &&
-		(current_encoder_count_right - previous_encoder_count_right) == 0) { 	
-	
+		(current_encoder_count_right - previous_encoder_count_right) == 0) {
+
 		delta_x = 0;
 		delta_y = 0;
         delta_theta = 0;
@@ -198,7 +205,7 @@ void update_velocities(double dt) {
     double right_wheel_travel = (current_encoder_count_right - previous_encoder_count_right) * ((wheel_diam_m * M_PI) / ticks_per_rev);
     double left_wheel_travel = (current_encoder_count_left - previous_encoder_count_left) * ((wheel_diam_m * M_PI) / ticks_per_rev);
 
-	
+
 	if( (left_wheel_travel - right_wheel_travel) == 0){
 		delta_x = 0;
 		delta_y = 0;
@@ -223,7 +230,7 @@ void update_velocities(double dt) {
 
     double x_instantanous_center_of_curvature = x - ( pivot_center * cos(theta) );
     double y_instantanous_center_of_curvature = y + ( pivot_center * sin(theta) );
-	
+
 	ROS_INFO("dt=%f, wd=%f, rwt=%f, lwt=%f, pecr=%d, pecl=%d, cecr=%d, cecl=%d, pa=%f, pc=%f, xicc=%f, yicc=%f", dt, wheel_diam_m, right_wheel_travel, left_wheel_travel, previous_encoder_count_right, previous_encoder_count_left, current_encoder_count_right, current_encoder_count_left, pivot_angl, pivot_center, x_instantanous_center_of_curvature, y_instantanous_center_of_curvature);
 
 	//rTp
@@ -314,8 +321,12 @@ int main(int argc, char** argv)
   	std::string encoder_topic_base = topic_path + encodername;
 	nh.getParam("encoder_topic", encoder_topic_base);
 
-	encoders_sub = n.subscribe(encoder_topic_base, 300, encoderCallback);
+	std::string encoder_topic_l = encoder_topic_base + "/enc_0";
+	std::string encoder_topic_r = encoder_topic_base + "/enc_1";
 
+
+	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
+	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
 
 	// Setup nav and odom stuff
 	std::string base_link = "base_link";
@@ -328,7 +339,7 @@ int main(int argc, char** argv)
 			right_encoder_counts_per_mm);
 
 	nh.getParam("wheelbase", wheelbase_mm);
-	
+
 	nh.getParam("frictioncoefficient", friction_coefficient);
 
 	// Get verbosity level
@@ -362,7 +373,7 @@ int main(int argc, char** argv)
 	while(ros::ok()){
 
 
-		
+
 		// Handle and update time
 		current_time = ros::Time::now();
 		//TODO remove test section below
@@ -431,7 +442,7 @@ int main(int argc, char** argv)
 		odom.twist.twist.linear.x = delta_x / dt;
 		odom.twist.twist.linear.y = delta_y / dt;
 		odom.twist.twist.linear.z = 0.0;
-		odom.twist.twist.angular.x = 0.0;	
+		odom.twist.twist.angular.x = 0.0;
 		odom.twist.twist.angular.y = 0.0;
 		odom.twist.twist.angular.z = delta_theta / dt;
 
@@ -444,5 +455,3 @@ int main(int argc, char** argv)
 	}
 	return 0;
 }
-
-

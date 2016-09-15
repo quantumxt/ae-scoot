@@ -46,13 +46,13 @@ private:
 	int evaluate_kangaroo_response( uint8_t address, uint8_t* header, uint8_t* data, bool& ok);
 	void handle_errors(uint8_t address, int error_code);
 
-	//Steer Test
-	void steerTest();
+	//Steer & Speed Test
+	void channelTest(int lim, int step, char channel);
 
 	// address of the serial port
 	std::string port;
 	// the number of lines of the encoder
-	int encoder_lines_per_revolution_steering;
+	int encoder_lines_per_revolution;
 	//Wheel circumference
 	double circumference_of_wheels;
 

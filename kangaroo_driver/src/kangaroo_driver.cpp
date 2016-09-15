@@ -24,7 +24,7 @@ ch2_joint_name( "2" ),
 fd( -1 ),
 nh( _nh ),
 nh_priv( _nh_priv ),
-encoder_lines_per_revolution_steering(18000),
+encoder_lines_per_revolution(18000),
 hz(50)
 
 //msg(new sensor_msgs::JointState)
@@ -169,36 +169,35 @@ void kangaroo::TwistCB(const geometry_msgs::TwistPtr &msg){
 
 	tcflush(fd, TCOFLUSH);
 
-	int threshold = 800;
+	/*int threshold = 800;
 	if(vel_twist.linear.x>0){
 		forw = threshold;
 	}else if(vel_twist.linear.x<0){
-		forw = -threshold;
+		forw = -threshold-200;
+	}else{
+		forw=0;
 	}
-
-	side += vel_twist.angular.z*3000;
+	if(vel_twist.angular.z>0){
+		side = 2500;
+	}else if(vel_twist.angular.z<0){
+		side = -2500;
+	}else{
+		side = 0;
+	}
+	*/
 
 	//ROS_INFO("Vertical: %f", forw);		//Forward + back
 	//ROS_INFO("Horizontal: %f", side);	//Left + Right
-
-	//double channel_1_position = msg->points[0].positions[ch1_idx];
-	//double channel_2_position = msg->points[0].positions[ch2_idx];
-
-	//channel_1_speed = radians_to_encoder_lines(channel_1_speed);
-	//channel_2_speed = radians_to_encoder_lines(channel_2_speed);
-
-	//channel_1_position = radians_to_encoder_lines(channel_1_position);
-	//channel_2_position = radians_to_encoder_lines(channel_2_position);
 
 	// lock the output_mutex
 	boost::mutex::scoped_lock output_lock(output_mutex);
 
 	//Steering
-	set_channel_position(side, 128, '1', 10000);
+	set_channel_position(vel_twist.angular.z*2000, 128, '1', 4000);
 	//channelTest(2500,5,'2');
 
 	//Motor Speed
-	set_channel_position(forw, 128, '2', 10000);
+	set_channel_position(vel_twist.linear.x*2000, 128, '2', 4000);
 	//channelTest(1300,5,'2');
 }
 
@@ -252,8 +251,8 @@ void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 	boost::mutex::scoped_lock output_lock(output_mutex);
 	//set_channel_speed(channel_1_speed, 128, '1', 10000);
 	//set_channel_speed(channel_2_sed, 128, '2', 10000);
-	set_channel_position(channel_1_position, 128, '1', 1000);
-	set_channel_position(channel_1_position, 128, '2', 1000);
+	set_channel_position(channel_1_position, 128, '1', 10000);
+	set_channel_position(channel_2_position, 128, '2', 10000);
 
 }
 
@@ -542,7 +541,7 @@ void kangaroo::channelTest(int lim, int step, char channel){
 
 inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
 {
-	return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_steering);
+	return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution);
 
 }
 
@@ -553,8 +552,8 @@ inline double kangaroo::encoder_lines_to_meters( int encoder_lines )
 
 inline int kangaroo::radians_to_encoder_lines( double radians )
 {
-	//	return (radians * encoder_lines_per_revolution / ( 2 * M_PI ));
-	return 0;
+	return (radians * encoder_lines_per_revolution / ( 2 * M_PI ));
+	//return 0;
 }
 
 //inline int kangaroo::meters_to_encoder_lines( double meters )

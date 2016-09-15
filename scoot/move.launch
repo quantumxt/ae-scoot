@@ -2,7 +2,7 @@
 
   <arg name="drive_speed" default="0.25" />
   <arg name="turn_speed" default="0.25" />
-  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="joy_dev" default="/dev/input/js1" />
   <arg name="cmd_topic" default="cmd_vel" />
 
 
@@ -17,12 +17,11 @@
     <remap from="cmd_vel" to="$(arg cmd_topic)" />
   </node>
 
-
 <!--Encoder-->
-<node pkg="phidgets_motion_control" type="high_speed_encoder" name="phidgets_motion_control_encoder" output="screen"/>
+<node pkg="phidgets_motion_control" type="high_speed_encoder" name="wheel_encoder" output="screen"/>
+<node pkg="phidgets_motion_control" type="odometry" name="wheel_odom" output="screen"/>
 
-<!--For steering-->
+<!--For steering & speed-->
   <node pkg="kangaroo_driver" type="kangaroo_driver_node" name="kangaroo_driver_node" output="screen"/>
-
 
 </launch>

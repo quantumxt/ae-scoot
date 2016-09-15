@@ -1,0 +1,112 @@
+<launch>
+
+  <arg name="drive_speed" default="0.25" />
+  <arg name="turn_speed" default="0.25" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="cmd_topic" default="cmd_vel" />
+
+
+  <node pkg="joy" type="joy_node" name="joy_node">
+    <param name="dev" value="$(arg joy_dev)" />
+    <param name="deadzone" value="0.3" />
+  </node>
+
+  <node pkg="teleop_twist_joy" type="teleop_node" name="teleop_node">
+    <param name="turn_scale" value="$(arg turn_speed)" />
+    <param name="drive_scale" value="$(arg drive_speed)" />
+    <remap from="cmd_vel" to="$(arg cmd_topic)" />
+  </node>
+
+
+  <!--Encoder-->
+  <node pkg="phidgets_motion_control" type="high_speed_encoder" name="wheel_encoder" />
+  <node pkg="phidgets_motion_control" type="odometry" name="wheel_odom" />
+
+
+  <!--For steering-->
+  <node pkg="kangaroo_driver" type="kangaroo_driver_node" name="kangaroo_driver_node" />
+
+  <!-- TFs -->
+  <!-- base_link tf: Center of scooter (Reference to wheel height) -->
+
+  <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom 10" />
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base_link" args="0 0 0 0 0 0 odom base_link 10" />
+
+
+  <!-- Hokuyo Lidar-->
+  <node pkg="urg_node" type="urg_node" name="urg_node" >
+    <rosparam>
+      publish_intensity: true
+      angle_min: -2.2689
+      angle_max: 2.2689
+      cluster: 1
+      skip: 0
+      ip_address: 192.168.2.110
+      ip_port: 10940
+      frame_id: laser
+      calibrate_time: true
+      time_offset: 0.0
+      publish_multiecho: false
+
+    </rosparam>
+    <!--<remap from="scan" to="scanH" />-->
+  </node>
+  <!-- Hokuyo Lidar tf -->
+  <node pkg="tf" type="static_transform_publisher" name="base_link_to_h_laser" args="0.47 -0.075 0.29 0.06981 0 0 base_link laser 10" />
+
+
+  <!-- Localisation -->
+  <node pkg="amcl" type="amcl" name="amcl">
+    <param name="odom_model_type"           value="diff"/>
+    <param name="odom_alpha5"               value="0.1"/>
+    <param name="gui_publish_rate"          value="1.0"/>
+    <param name="laser_max_beams"             value="200"/>
+    <param name="laser_max_range"           value="-1.0"/>
+    <param name="min_particles"             value="500"/>
+    <param name="max_particles"             value="1000"/>
+    <param name="kld_err"                   value="0.05"/>
+    <param name="kld_z"                     value="0.99"/>
+    <param name="odom_alpha1"               value="0.2"/>
+    <param name="odom_alpha2"               value="0.2"/>
+
+    <param name="odom_alpha3"               value="0.2"/>
+    <param name="odom_alpha4"               value="0.2"/>
+    <param name="laser_z_hit"               value="0.5"/>
+    <param name="laser_z_short"             value="0.05"/>
+    <param name="laser_z_max"               value="0.05"/>
+    <param name="laser_z_rand"              value="0.5"/>
+    <param name="laser_sigma_hit"           value="0.2"/>
+    <param name="laser_lambda_short"        value="0.1"/>
+    <param name="laser_model_type"          value="likelihood_field"/>
+
+    <param name="laser_likelihood_max_dist" value="2.0"/>
+    <param name="update_min_d"              value="0.25"/>
+    <param name="update_min_a"              value="0.2"/>
+    <param name="odom_frame_id"             value="odom"/>
+    <param name="base_frame_id"             value="base_link"/>
+    <param name="resample_interval"         value="1"/>
+
+    <param name="transform_tolerance"       value="0.1"/>
+    <param name="recovery_alpha_slow"       value="0.001"/>
+    <param name="recovery_alpha_fast"       value="0.1"/>
+
+  </node>
+
+  <!--Navigation -->
+  <node pkg="map_server" type="map_server" name="map_server" args="$(find scoot)/map/map.yaml"/>
+
+
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find scoot)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find scoot)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find scoot)/config/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find scoot)/config/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find scoot)/config/base_local_planner_params.yaml" command="load" />
+
+    <param name="conservative_reset_dist" type="double" value="3.0" />
+    <!--Plugin-->
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+    <param name="controller_frequency" value="10.0" />
+  </node>
+
+</launch>

@@ -1,36 +1,36 @@
 /*********************************************************************
- * Software License Agreement (BSD License)
- *
- *  Phidgets based wheel odometry for a differential drive system
- *  For use with a pair of Phidgets high speed encoders
- *  See http://www.ros.org/wiki/navigation/Tutorials/RobotSetup/Odom
- *  Copyright (c) 2010, Bob Mottram
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *********************************************************************/
+* Software License Agreement (BSD License)
+*
+*  Phidgets based wheel odometry for a differential drive system
+*  For use with a pair of Phidgets high speed encoders
+*  See http://www.ros.org/wiki/navigation/Tutorials/RobotSetup/Odom
+*  Copyright (c) 2010, Bob Mottram
+*  All rights reserved.
+*
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted provided that the following conditions
+*  are met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*
+*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+*  POSSIBILITY OF SUCH DAMAGE.
+*********************************************************************/
 
 #include <stdio.h>
 #include <math.h>
@@ -38,6 +38,8 @@
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include "phidgets_motion_control/encoder_params.h"
+#include <std_msgs/Float64.h>
+
 
 // used to prevent callbacks from accessing variables
 // before they are initialised
@@ -110,9 +112,9 @@ void update_encoder_right(int count)
 }
 
 /*!
- * \brief callback when the left or right encoder count changes
- * \param ptr encoder parameters
- */
+* \brief callback when the left or right encoder count changes
+* \param ptr encoder parameters
+*/
 
 void encoderCallback(const phidgets_motion_control::encoder_params::ConstPtr& ptr)
 {
@@ -128,9 +130,9 @@ void encoderCallback(const phidgets_motion_control::encoder_params::ConstPtr& pt
 }
 
 /*!
- * \brief callback when the left encoder count changes
- * \param ptr encoder parameters
- */
+* \brief callback when the left encoder count changes
+* \param ptr encoder parameters
+*/
 void leftEncoderCallback(const phidgets_motion_control::encoder_params::ConstPtr& ptr)
 {
 	if (initialised) {
@@ -140,9 +142,9 @@ void leftEncoderCallback(const phidgets_motion_control::encoder_params::ConstPtr
 }
 
 /*!
- * \brief callback when the right encoder count changes
- * \param ptr encoder parameters
- */
+* \brief callback when the right encoder count changes
+* \param ptr encoder parameters
+*/
 void rightEncoderCallback(const phidgets_motion_control::encoder_params::ConstPtr& ptr)
 {
 	if (initialised) {
@@ -152,29 +154,27 @@ void rightEncoderCallback(const phidgets_motion_control::encoder_params::ConstPt
 }
 
 /*!
- * \param connects to a phidgets high speed encoder
- *        device which contains two or more encoders
- */
+* \param connects to a phidgets high speed encoder
+*        device which contains two or more encoders
+*/
 
 bool subscribe_to_encoders_by_index()
-   {
-   	bool success = true;
-   	ros::NodeHandle n;
+{
+	bool success = true;
+	ros::NodeHandle n;
 	ros::NodeHandle nh("~");
 	std::string topic_path = "phidgets/";
 	nh.getParam("topic_path", topic_path);
 	std::string encodername = "encoder";
 	nh.getParam("encodername", encodername);
-  std::string encoder_topic_base = topic_path + encodername;
+	std::string encoder_topic_base = topic_path + encodername;
 	nh.getParam("encoder_topic", encoder_topic_base);
 
 	std::string encoder_topic_l = encoder_topic_base + "/enc_0";
 	std::string encoder_topic_r = encoder_topic_base + "/enc_1";
 
-
 	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
 	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
-
 
 	return(success);
 }
@@ -184,12 +184,12 @@ bool subscribe_to_encoders_by_index()
 void update_velocities(double dt) {
 
 	if((current_encoder_count_left - previous_encoder_count_left) == 0 &&
-		(current_encoder_count_right - previous_encoder_count_right) == 0) {
+	(current_encoder_count_right - previous_encoder_count_right) == 0) {
 
 		delta_x = 0;
 		delta_y = 0;
-        delta_theta = 0;
-		ROS_INFO("skip1");
+		delta_theta = 0;
+		//ROS_INFO("skip1");
 		return;
 	}
 
@@ -202,8 +202,8 @@ void update_velocities(double dt) {
 
 	double wheel_diam_m = (wheel_diam_mm / 1000);
 
-    double right_wheel_travel = (current_encoder_count_right - previous_encoder_count_right) * ((wheel_diam_m * M_PI) / ticks_per_rev);
-    double left_wheel_travel = (current_encoder_count_left - previous_encoder_count_left) * ((wheel_diam_m * M_PI) / ticks_per_rev);
+	double right_wheel_travel = (current_encoder_count_right - previous_encoder_count_right) * ((wheel_diam_m * M_PI) / ticks_per_rev);
+	double left_wheel_travel = (current_encoder_count_left - previous_encoder_count_left) * ((wheel_diam_m * M_PI) / ticks_per_rev);
 
 
 	if( (left_wheel_travel - right_wheel_travel) == 0){
@@ -215,7 +215,7 @@ void update_velocities(double dt) {
 	}
 
 	if((current_encoder_count_left - previous_encoder_count_left) ==
-		(current_encoder_count_right - previous_encoder_count_right)) {
+	(current_encoder_count_right - previous_encoder_count_right)) {
 
 		delta_x = sin(theta) * right_wheel_travel;
 		delta_y = cos(theta) * right_wheel_travel;
@@ -228,18 +228,18 @@ void update_velocities(double dt) {
 
 	double pivot_center = ( ( wheel_base_m / 2 ) *  ( ( left_wheel_travel + right_wheel_travel ) / ( left_wheel_travel - right_wheel_travel ) ) ) * (1 + friction_coefficient);
 
-    double x_instantanous_center_of_curvature = x - ( pivot_center * cos(theta) );
-    double y_instantanous_center_of_curvature = y + ( pivot_center * sin(theta) );
+	double x_instantanous_center_of_curvature = x - ( pivot_center * cos(theta) );
+	double y_instantanous_center_of_curvature = y + ( pivot_center * sin(theta) );
 
 	ROS_INFO("dt=%f, wd=%f, rwt=%f, lwt=%f, pecr=%d, pecl=%d, cecr=%d, cecl=%d, pa=%f, pc=%f, xicc=%f, yicc=%f", dt, wheel_diam_m, right_wheel_travel, left_wheel_travel, previous_encoder_count_right, previous_encoder_count_left, current_encoder_count_right, current_encoder_count_left, pivot_angl, pivot_center, x_instantanous_center_of_curvature, y_instantanous_center_of_curvature);
 
 	//rTp
 	double rTp[3][3];
-    rTp[0][0] = cos( pivot_angl * dt );
-    rTp[0][1] = -1 * sin( pivot_angl * dt );
+	rTp[0][0] = cos( pivot_angl * dt );
+	rTp[0][1] = -1 * sin( pivot_angl * dt );
 	rTp[0][2] = 0;
-    rTp[1][0] = sin( pivot_angl * dt );
-    rTp[1][1] = cos( pivot_angl * dt );
+	rTp[1][0] = sin( pivot_angl * dt );
+	rTp[1][1] = cos( pivot_angl * dt );
 	rTp[1][2] = 0;
 	rTp[2][0] = 0;
 	rTp[2][1] = 0;
@@ -263,18 +263,16 @@ void update_velocities(double dt) {
 	rTn[1][0] = rTp[1][0] * pTicc[1][0] + rTp[1][1] * pTicc[1][0] + iccTn[1][0];
 	rTn[2][0] = pTicc[2][0] + iccTn[2][0];
 
-    delta_x = (rTn[0][0] - x);
-    delta_y = (rTn[1][0] - y);
+	delta_x = (rTn[0][0] - x);
+	delta_y = (rTn[1][0] - y);
 	delta_theta = rTn[2][0] - theta;
 
 	previous_encoder_count_left = current_encoder_count_left;
 	previous_encoder_count_right = current_encoder_count_right;
-    //current_encoder_count_left = 0;
-    //current_encoder_count_right = 0;
-
+	//current_encoder_count_left = 0;
+	//current_encoder_count_right = 0;
 
 	ROS_DEBUG("\nrTn Matrix:\n[%g]\n[%g]\n[%g]\n", rTn[0][0], rTn[1][0], rTn[2][0]);
-
 
 }
 
@@ -297,9 +295,13 @@ int main(int argc, char** argv)
 	n.setParam(reset_topic, false);
 
 	// TODO paramaterize num to keep in buffer
-	ros::Publisher odom_pub =
-		n.advertise<nav_msgs::Odometry>(name, 50);
 	tf::TransformBroadcaster odom_broadcaster;
+
+	//Publishers
+	ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>(name, 50);
+	//Vehicle velocity
+	ros::Publisher vel_pub = n.advertise<std_msgs::Float64>("veh_vel",100);
+
 
 	// get encoder indexes
 	nh.getParam("encoderindexleft", encoder_index_left);
@@ -318,7 +320,7 @@ int main(int argc, char** argv)
 	nh.getParam("topic_path", topic_path);
 	std::string encodername = "encoder";
 	nh.getParam("encodername", encodername);
-  	std::string encoder_topic_base = topic_path + encodername;
+	std::string encoder_topic_base = topic_path + encodername;
 	nh.getParam("encoder_topic", encoder_topic_base);
 
 	std::string encoder_topic_l = encoder_topic_base + "/enc_0";
@@ -330,34 +332,34 @@ int main(int argc, char** argv)
 
 	// Setup nav and odom stuff
 	std::string base_link = "base_link";
-    //nh.getParam("base_link", base_link);
+	//nh.getParam("base_link", base_link);
 	std::string frame_id = "odom";
-/*	nh.getParam("frame_id", frame_id);
+	/*	nh.getParam("frame_id", frame_id);
 	nh.getParam("countspermmleft",
-			left_encoder_counts_per_mm);
+	left_encoder_counts_per_mm);
 	nh.getParam("countspermmright",
-			right_encoder_counts_per_mm);
+	right_encoder_counts_per_mm);
 
 	nh.getParam("wheelbase", wheelbase_mm);
 
 	nh.getParam("frictioncoefficient", friction_coefficient);
 
 	// Get verbosity level
-    nh.getParam("verbose", verbose);*/
+	nh.getParam("verbose", verbose);*/
 
-    wheelbase_mm = 305;
-    left_encoder_counts_per_mm = 0.1227;
-    right_encoder_counts_per_mm = 0.1227;
-    encoder_index_left = 0;
-    encoder_index_right = 2;
-    encoder_direction_left = -1;
-    encoder_direction_right = 1;
-    ticks_per_rev = 3200;
-    wheel_diam_mm = 392.64;
-    friction_coefficient = 0.1;
+	wheelbase_mm = 305;
+	left_encoder_counts_per_mm = 0.1227;
+	right_encoder_counts_per_mm = 0.1227;
+	encoder_index_left = 0;
+	encoder_index_right = 2;
+	encoder_direction_left = -1;
+	encoder_direction_right = 1;
+	ticks_per_rev = 3200;
+	wheel_diam_mm = 392.64;
+	friction_coefficient = 0.1;
 
-    int frequency = 10;
-    //nh.getParam("frequency", frequency);
+	int frequency = 10;
+	//nh.getParam("frequency", frequency);
 
 	geometry_msgs::TransformStamped odom_trans;
 	odom_trans.header.frame_id = frame_id;
@@ -406,14 +408,14 @@ int main(int argc, char** argv)
 		// the velocities of the robot
 		x += delta_x;
 		y += delta_y;
-        theta += -delta_theta;
+		theta += -delta_theta;
 
 
 		//ROS_INFO("dx=%f, dy=%f, dtheta=%f", delta_x, delta_y, delta_theta);
 		//ROS_INFO("x=%f, y=%f, theta=%f", x, y, theta);
 		// get Quaternion from rpy
 		geometry_msgs::Quaternion odom_quat =
-			tf::createQuaternionMsgFromYaw(theta);
+		tf::createQuaternionMsgFromYaw(theta);
 
 		// first, we'll publish the transform over tf
 		odom_trans.header.stamp = current_time;
@@ -445,6 +447,15 @@ int main(int argc, char** argv)
 		odom.twist.twist.angular.x = 0.0;
 		odom.twist.twist.angular.y = 0.0;
 		odom.twist.twist.angular.z = delta_theta / dt;
+
+		//Get resultant_vel
+		std_msgs::Float64 rvel;
+		rvel.data = sqrt(pow(delta_x / dt,2)+pow(delta_y / dt, 2));		//	m/s
+		//rvel.data = sqrt(pow((delta_x/1000) / (dt*3600),2)+pow((delta_y/1000) / (dt*3600), 2));	//	km/h
+		if(delta_x<0)
+			rvel.data = -rvel.data;
+		//ROS_INFO("Velocity: %f",rvel.data);
+		vel_pub.publish(rvel);
 
 		// publish odom
 		odom_pub.publish(odom);

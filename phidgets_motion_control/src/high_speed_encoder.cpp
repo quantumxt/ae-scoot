@@ -42,10 +42,11 @@
 CPhidgetEncoderHandle phid;
 
 // encoder state publisher
-ros::Publisher encoder_pub_0;
-ros::Publisher encoder_pub_1;
+ros::Publisher encoder_pub_L;   //Left
+ros::Publisher encoder_pub_R;   //Right
 
 bool initialised = false;
+int encError = 0;   //Error that accumulates overtime between left & right encoder
 
 int AttachHandler(CPhidgetHandle phid, void *userptr)
 {
@@ -114,18 +115,33 @@ int PositionChangeHandler(CPhidgetEncoderHandle ENC,
     e.count_change = RelativePosition;
     e.time = Time;
 
+    int encL = 0;
+    int encR = 0;
+
       if (initialised){
-        //Motor speed for steering
         if(Index==0){
-          encoder_pub_0.publish(e);
+          //Port 0 for Left encoder
+          encoder_pub_L.publish(e);
+          encL=e.count;
         }
-        else if(Index==1){  //Speed of wheel
-          encoder_pub_1.publish(e);
+        else if(Index==2){
+          //Port 2 for Right encoder (Since port 1 is spoilt)
+          encoder_pub_R.publish(e);
+          encR=e.count;
         }
         ROS_INFO("Encoder %d Count %d", Index, Position);
 
       }
+
+      encError = encL - encR;
+      ROS_INFO("Encoder Error %d", encError);
+
       //printf("Encoder #%i - Position: %5d -- Relative Change %2d -- Elapsed Time: %5d \n", Index, Position, RelativePosition, Time);
+
+    //if (initialised){ encoder_pub_0.publish(e); }
+    //ROS_INFO("Encoder %d Count %d", Index, Position);
+
+    return 0;
 
   return 0;
 }
@@ -223,12 +239,14 @@ int main(int argc, char* argv[])
 
         const int buffer_length = 100;
 
-        std::string topic_steer_enc0 = topic_path + name + "/enc_0";
-        std::string topic_steer_enc1 = topic_path + name+ "/enc_1";
+        //std::string topic_steer_encL = topic_path + name + "/enc_L";
 
-        encoder_pub_0 = n.advertise<phidgets_motion_control::encoder_params>(topic_steer_enc0,
+        std::string topic_steer_encL = name + "/enc_L";
+        std::string topic_steer_encR = name+ "/enc_R";
+
+        encoder_pub_L = n.advertise<phidgets_motion_control::encoder_params>(topic_steer_encL,
 												  buffer_length);
-        encoder_pub_1 = n.advertise<phidgets_motion_control::encoder_params>(topic_steer_enc1,
+        encoder_pub_R = n.advertise<phidgets_motion_control::encoder_params>(topic_steer_encR,
                   				buffer_length);
         initialised = true;
 

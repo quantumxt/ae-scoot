@@ -47,11 +47,11 @@ bool initialised = false;
 
 // index numbers of left and right encoders for the case
 // where two or more encoders exist on the same Phidget device
-int encoder_index_left=-1;
-int encoder_index_right=-1;
+int encoder_index_left=0;
+int encoder_index_right=2;
 
 // should we announce every encoder count that arrives?
-bool verbose = true;
+bool verbose = false;
 
 // normally on a differential drive system to when moving
 //  forwards the wheels are rotating in opposite directions
@@ -62,14 +62,13 @@ int encoder_direction_right = -1;
 double wheelbase_mm = 480;
 
 // how many ticks in a rev for wheel
-double ticks_per_rev = 746;
+double ticks_per_rev = 4000;
 
 
 // back wheel diameter
 double wheel_diam_mm = 180;
 
 // friction
-
 double friction_coefficient = .1;
 
 // encoder counts
@@ -77,7 +76,6 @@ int current_encoder_count_left = 0;
 int current_encoder_count_right = 0;
 int previous_encoder_count_left = 0;
 int previous_encoder_count_right = 0;
-
 
 // encoder counts per millimetre
 double left_encoder_counts_per_mm = .1227;
@@ -103,12 +101,15 @@ double rotation_offset=0;
 void update_encoder_left(int count)
 {
 	current_encoder_count_left = count * encoder_direction_left;
+	ROS_INFO("Left encoder count -> %f",current_encoder_count_left);
 }
 
 // Update the right encoder count
 void update_encoder_right(int count)
 {
 	current_encoder_count_right = count * encoder_direction_right;
+	ROS_INFO("Right encoder count -> %f",current_encoder_count_right);
+
 }
 
 /*!
@@ -163,15 +164,16 @@ bool subscribe_to_encoders_by_index()
 	bool success = true;
 	ros::NodeHandle n;
 	ros::NodeHandle nh("~");
-	std::string topic_path = "phidgets/";
+	/*std::string topic_path = "phidgets/";
 	nh.getParam("topic_path", topic_path);
 	std::string encodername = "encoder";
 	nh.getParam("encodername", encodername);
 	std::string encoder_topic_base = topic_path + encodername;
-	nh.getParam("encoder_topic", encoder_topic_base);
-
-	std::string encoder_topic_l = encoder_topic_base + "/enc_0";
-	std::string encoder_topic_r = encoder_topic_base + "/enc_1";
+	*/
+	std::string encodername = "encoder";
+	nh.getParam("encodername", encodername);
+	std::string encoder_topic_l = encodername + "/enc_L";
+	std::string encoder_topic_r = encodername + "/enc_R";
 
 	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
 	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
@@ -185,7 +187,6 @@ void update_velocities(double dt) {
 
 	if((current_encoder_count_left - previous_encoder_count_left) == 0 &&
 	(current_encoder_count_right - previous_encoder_count_right) == 0) {
-
 		delta_x = 0;
 		delta_y = 0;
 		delta_theta = 0;
@@ -201,10 +202,11 @@ void update_velocities(double dt) {
 	//double right_encoder_counts_per_m = (right_encoder_counts_per_mm / 1000);
 
 	double wheel_diam_m = (wheel_diam_mm / 1000);
-
-	double right_wheel_travel = (current_encoder_count_right - previous_encoder_count_right) * ((wheel_diam_m * M_PI) / ticks_per_rev);
 	double left_wheel_travel = (current_encoder_count_left - previous_encoder_count_left) * ((wheel_diam_m * M_PI) / ticks_per_rev);
+	double right_wheel_travel = (current_encoder_count_right - previous_encoder_count_right) * ((wheel_diam_m * M_PI) / ticks_per_rev);
 
+	ROS_INFO("Left velocity -> %f",left_wheel_travel);
+	ROS_INFO("Right velocity -> %f",right_wheel_travel);
 
 	if( (left_wheel_travel - right_wheel_travel) == 0){
 		delta_x = 0;
@@ -298,7 +300,8 @@ int main(int argc, char** argv)
 	tf::TransformBroadcaster odom_broadcaster;
 
 	//Publishers
-	ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>(name, 50);
+	ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>(name, 100);
+
 	//Vehicle velocity
 	ros::Publisher vel_pub = n.advertise<std_msgs::Float64>("veh_vel",100);
 
@@ -316,16 +319,10 @@ int main(int argc, char** argv)
 
 
 	// connect to the encoders
-	std::string topic_path = "phidgets/";
-	nh.getParam("topic_path", topic_path);
 	std::string encodername = "encoder";
 	nh.getParam("encodername", encodername);
-	std::string encoder_topic_base = topic_path + encodername;
-	nh.getParam("encoder_topic", encoder_topic_base);
-
-	std::string encoder_topic_l = encoder_topic_base + "/enc_0";
-	std::string encoder_topic_r = encoder_topic_base + "/enc_1";
-
+	std::string encoder_topic_l = encodername + "/enc_L";
+	std::string encoder_topic_r = encodername + "/enc_R";
 
 	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
 	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
@@ -348,14 +345,16 @@ int main(int argc, char** argv)
 	nh.getParam("verbose", verbose);*/
 
 	wheelbase_mm = 305;
-	left_encoder_counts_per_mm = 0.1227;
-	right_encoder_counts_per_mm = 0.1227;
+	//left_encoder_counts_per_mm = 0.1227;
+	//right_encoder_counts_per_mm = 0.1227;
+	left_encoder_counts_per_mm = 0.1;
+	right_encoder_counts_per_mm = 0.1;
 	encoder_index_left = 0;
 	encoder_index_right = 2;
-	encoder_direction_left = -1;
-	encoder_direction_right = 1;
+	//encoder_direction_left = 1;
+	//encoder_direction_right = -1;
 	ticks_per_rev = 3200;
-	wheel_diam_mm = 392.64;
+	wheel_diam_mm = 180;
 	friction_coefficient = 0.1;
 
 	int frequency = 10;
@@ -373,8 +372,6 @@ int main(int argc, char** argv)
 
 	ros::Rate update_rate(frequency);
 	while(ros::ok()){
-
-
 
 		// Handle and update time
 		current_time = ros::Time::now();
@@ -448,6 +445,9 @@ int main(int argc, char** argv)
 		odom.twist.twist.angular.y = 0.0;
 		odom.twist.twist.angular.z = delta_theta / dt;
 
+		// publish odom
+		odom_pub.publish(odom);
+		
 		//Get resultant_vel
 		std_msgs::Float64 rvel;
 		rvel.data = sqrt(pow(delta_x / dt,2)+pow(delta_y / dt, 2));		//	m/s
@@ -457,8 +457,7 @@ int main(int argc, char** argv)
 		//ROS_INFO("Velocity: %f",rvel.data);
 		vel_pub.publish(rvel);
 
-		// publish odom
-		odom_pub.publish(odom);
+
 
 		last_time = current_time;
 		ros::spinOnce();

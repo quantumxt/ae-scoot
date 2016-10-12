@@ -17,11 +17,15 @@
     <remap from="cmd_vel" to="$(arg cmd_topic)" />
   </node>
 
-<!--Encoder-->
-<node pkg="phidgets_motion_control" type="high_speed_encoder" name="wheel_encoder" output="screen"/>
-<node pkg="phidgets_motion_control" type="odometry" name="wheel_odom" output="screen"/>
+  <!-- Joy Kangaroo interface -->
+  <node pkg="drive_controller" type="base_controller_node" name="base_controller_node" />
 
-<!--For steering & speed-->
+
+  <!--Encoder-->
+  <node pkg="phidgets_motion_control" type="high_speed_encoder" name="wheel_encoder" />
+  <node pkg="phidgets_motion_control" type="odometry" name="wheel_odom" />
+
+
+  <!--For motor control-->
   <node pkg="kangaroo_driver" type="kangaroo_driver_node" name="kangaroo_driver_node" output="screen"/>
-
 </launch>

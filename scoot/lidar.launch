@@ -15,7 +15,6 @@
       skip: 0
       ip_address: 192.168.2.110
       ip_port: 10940
-      serial_port: /dev/ttyACM0
       frame_id: laser
       calibrate_time: true
       time_offset: 0.0

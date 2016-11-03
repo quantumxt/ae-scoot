@@ -6,10 +6,8 @@ raytrace_range: 3.0
 #Robot's footprint
 footprint: [[-0.47, 0.18], [-0.47, -0.18], [0.47, -0.18],[0.47, 0.18]]
 
-
 #Cost function parameters
 inflation_radius: 0.2
-
 
 observation_sources: laser_scan_sensor
 

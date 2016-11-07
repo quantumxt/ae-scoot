@@ -9,8 +9,6 @@
 #include <boost/thread.hpp>
 #include <string>
 
-#include "geometry_msgs/Twist.h"
-
 //namespace kangaroo
 //{
 
@@ -28,9 +26,6 @@ public:
 
 private:
 	bool is_open( ) const;
-
-	//Callback f(x)s
-	void TwistCB(const geometry_msgs::TwistPtr &msg);
 	void JointTrajCB( const trajectory_msgs::JointTrajectoryPtr &msg );
 
 	// functions for sending information to the kangaroo
@@ -46,16 +41,10 @@ private:
 	int evaluate_kangaroo_response( uint8_t address, uint8_t* header, uint8_t* data, bool& ok);
 	void handle_errors(uint8_t address, int error_code);
 
-	//Steer & Speed Test
-	void channelTest(int lim, int step, char channel);
-
 	// address of the serial port
 	std::string port;
 	// the number of lines of the encoder
 	int encoder_lines_per_revolution;
-	//Wheel circumference
-	double circumference_of_wheels;
-
 	// the hertz that the JointState will be published at
 	int hz;
 	// the joints names for the two motors
@@ -69,10 +58,7 @@ private:
 	ros::NodeHandle nh;
 	ros::NodeHandle nh_priv;
 	ros::WallTimer poll_timer;
-	//Sub
 	ros::Subscriber joint_traj_sub;
-	ros::Subscriber vel_sub;
-	//Pub
 	ros::Publisher joint_state_pub;
 
 	// mutex-es for accessing the serial that the kangaroo is connected on
@@ -82,8 +68,6 @@ private:
 
 	// unit conversion
 	double encoder_lines_to_radians( int encoder_lines );
-	double encoder_lines_to_meters( int encoder_lines );
-
 	int radians_to_encoder_lines( double radians );
 };
 

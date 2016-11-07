@@ -1,0 +1,20 @@
+<library path="lib/libbase_controller_nodelet">
+  <class name="diff_drive_controller/base_controller_nodelet" type="base_controller::base_controller_nodelet" base_class_type="nodelet::Nodelet">
+    <description>Generic base controller for diff drive robots</description>
+  </class>
+</library>
+<library path="lib/libbase_twist_nodelet">
+  <class name="diff_drive_controller/base_twist_nodelet" type="base_twist::base_twist_nodelet" base_class_type="nodelet::Nodelet">
+    <description>Generic base joint state to twist_stamped converter for diff drive robots</description>
+  </class>
+</library>
+<library path="lib/libbase_pose_nodelet">
+  <class name="diff_drive_controller/base_pose_nodelet" type="base_pose::base_pose_nodelet" base_class_type="nodelet::Nodelet">
+    <description>Generic base joint state to pose_stamped converter for diff drive robots</description>
+  </class>
+</library>
+<library path="lib/libbasic_twist_integrator_nodelet">
+  <class name="diff_drive_controller/basic_twist_integrator_nodelet" type="basic_twist_integrator::basic_twist_integrator_nodelet" base_class_type="nodelet::Nodelet">
+    <description>Simple discrete integrator to turn twist messages into odom messages</description>
+  </class>
+</library>

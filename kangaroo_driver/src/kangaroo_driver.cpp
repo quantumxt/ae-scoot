@@ -15,32 +15,29 @@
 //namespace kangaroo
 //{
 
-geometry_msgs::Twist vel_twist;
-
 kangaroo::kangaroo( ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv ) :
 port( "" ),
-ch1_joint_name( "1" ),
-ch2_joint_name( "2" ),
+ch1_joint_name( "steer_joint" ),
+ch2_joint_name( "speed_joint" ),
 fd( -1 ),
 nh( _nh ),
 nh_priv( _nh_priv ),
-encoder_lines_per_revolution(18000),
+encoder_lines_per_revolution(3200),
 hz(50)
-
+//diameter_of_wheels(.117475)
 //msg(new sensor_msgs::JointState)
 {
 	ROS_INFO( "Initializing" );
 	nh_priv.param( "port", port, (std::string)"/dev/ttyACM0" );
-	nh_priv.param( "ch1_joint_name", ch1_joint_name, (std::string)"left_wheel" );
-	nh_priv.param( "ch2_joint_name", ch2_joint_name, (std::string)"right_wheel" );
+	nh_priv.param( "ch1_joint_name", ch1_joint_name, (std::string)"steer_joint" );
+	nh_priv.param( "ch2_joint_name", ch2_joint_name, (std::string)"speed_joint" );
 
 	// the rate we want to set the timer at
 	double rate = (double)1/(double)hz;
-	double diameter_of_wheels = 0.18;
 
 	poll_timer = nh.createWallTimer( ros::WallDuration(rate), &kangaroo::JointStateCB, this );
 
-	circumference_of_wheels = diameter_of_wheels * M_PI;
+	//circumference_of_wheels = diameter_of_wheels * M_PI;
 }
 
 bool kangaroo::open()
@@ -127,10 +124,6 @@ bool kangaroo::start( )
 	if( !is_open() && !open() )
 	return false;
 	ROS_INFO( "Starting" );
-
-	//Subscribe to cmd_vel (twist)
-	vel_sub = nh.subscribe( "cmd_vel", 3, &kangaroo::TwistCB, this );
-
 	if( !joint_traj_sub )
 	joint_traj_sub = nh.subscribe( "joint_trajectory", 1, &kangaroo::JointTrajCB, this );
 	if( !joint_state_pub)
@@ -157,52 +150,6 @@ bool kangaroo::is_open( ) const
 	return ( fd >= 0 );
 }
 
-//cmd vel callback
-//Moving based on twist
-void kangaroo::TwistCB(const geometry_msgs::TwistPtr &msg){
-	vel_twist = *msg;
-
-	float forw = 0;
-	float side = 0;
-
-
-
-	tcflush(fd, TCOFLUSH);
-
-	/*int threshold = 800;
-	if(vel_twist.linear.x>0){
-		forw = threshold;
-	}else if(vel_twist.linear.x<0){
-		forw = -threshold-200;
-	}else{
-		forw=0;
-	}
-	if(vel_twist.angular.z>0){
-		side = 2500;
-	}else if(vel_twist.angular.z<0){
-		side = -2500;
-	}else{
-		side = 0;
-	}
-	*/
-
-	//ROS_INFO("Vertical: %f", forw);		//Forward + back
-	//ROS_INFO("Horizontal: %f", side);	//Left + Right
-
-	// lock the output_mutex
-	boost::mutex::scoped_lock output_lock(output_mutex);
-
-	//Steering
-	set_channel_position(vel_twist.angular.z*2000, 128, '1', 4000);
-	//channelTest(2500,5,'2');
-
-	//Motor Speed
-	set_channel_position(vel_twist.linear.x*2000, 128, '2', 4000);
-	//channelTest(1300,5,'2');
-}
-
-
-
 void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 {
 	int ch1_idx = -1;
@@ -228,9 +175,9 @@ void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 		return;
 	}
 
-	if (msg->joint_names.size() != msg->points[0].velocities.size())
+	if (msg->joint_names.size() != msg->points[0].positions.size())
 	{
-		ROS_WARN("Got a JointTrajectory message whose points have no velocities");
+		ROS_WARN("Got a JointTrajectory message whose points have no positions");
 		return;
 	}
 
@@ -238,22 +185,28 @@ void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 
 	tcflush(fd, TCOFLUSH);
 
+	/*
+	double channel_1_speed = msg->points[0].velocities[ch1_idx];
+	double channel_2_speed = msg->points[0].velocities[ch2_idx];
+
+	channel_1_speed = radians_to_encoder_lines(channel_1_speed);
+	channel_2_speed = radians_to_encoder_lines(channel_2_speed);
+
+	channel_1_speed = radians_to_encoder_lines(channel_1_speed);
+	channel_2_speed = radians_to_encoder_lines(channel_2_speed);
+
+	boost::mutex::scoped_lock output_lock(output_mutex);
+	set_channel_speed(channel_1_speed, 128, '1');
+	set_channel_speed(channel_2_speed, 128, '2');
+	*/
+
 	double channel_1_position = msg->points[0].positions[ch1_idx];
 	double channel_2_position = msg->points[0].positions[ch2_idx];
 
-	//channel_1_speed = radians_to_encoder_lines(channel_1_speed);
-	//channel_2_speed = radians_to_encoder_lines(channel_2_speed);
-
-	channel_1_position = radians_to_encoder_lines(channel_1_position);
-	channel_2_position = radians_to_encoder_lines(channel_2_position);
-
 	// lock the output_mutex
 	boost::mutex::scoped_lock output_lock(output_mutex);
-	//set_channel_speed(channel_1_speed, 128, '1', 10000);
-	//set_channel_speed(channel_2_sed, 128, '2', 10000);
-	set_channel_position(channel_1_position, 128, '1', 10000);
-	set_channel_position(channel_2_position, 128, '2', 10000);
-
+	set_channel_position(1500*channel_1_position, 128, '1', 10000);
+	set_channel_position(1500*channel_2_position, 128, '2', 10000);
 }
 
 bool kangaroo::send_start_signals(unsigned char address)
@@ -280,18 +233,16 @@ bool kangaroo::send_start_signals(unsigned char address)
 	return true;
 }
 
+// sends the kangaroo a speed command for the given channel at the given address
+bool kangaroo::set_channel_position(double position, unsigned char address, char channel, int speedLimit){
+	//std::cout << "Sending " << position << " to Channel " << channel << std::endl;
 
-
-bool kangaroo::set_channel_position(double position, unsigned char address, char channel, int speedLimit)
-{
-	//std::cout<<"Sending " << position << " to Channel " << channel << std::endl;
 	if (!is_open() && !open())
 	return false;
 
 	// send
 	unsigned char buffer[18];
 	int num_of_bytes = write_kangaroo_position_command(address, channel, position, speedLimit, buffer);
-
 	if (0 > write(fd, buffer, num_of_bytes))
 	{
 		ROS_ERROR("Failed to update channel %c: %s", channel, strerror(errno));
@@ -299,7 +250,6 @@ bool kangaroo::set_channel_position(double position, unsigned char address, char
 		return false;
 	}
 	return true;
-
 }
 
 
@@ -333,7 +283,7 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 		msg->name[0] = ch1_joint_name;
 		msg->name[1] = ch2_joint_name;
 		msg->position.resize(2);
-		msg->velocity.resize(2);
+		//msg->velocity.resize(2);
 		msg->header.stamp = ros::Time::now();
 
 		// get_position and get_velocity might throw an exception if either
@@ -343,12 +293,9 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 		msg->position[1] = get_parameter((unsigned char)128, '2', (unsigned char)1);	// position for ch2
 		//msg->velocity[1] = get_parameter((unsigned char)128, '2', (unsigned char)2);	// velocity for ch2
 
-		//Steer angle
-		msg->position[0] = encoder_lines_to_radians(msg->position[0]);
+		//msg->position[0] = encoder_lines_to_radians(msg->position[0]);
 		//msg->velocity[0] = encoder_lines_to_radians(msg->velocity[0]);
-
-		//Backwheel dist
-		msg->position[1] = encoder_lines_to_meters(msg->position[1]);
+		//msg->position[1] = encoder_lines_to_radians(msg->position[1]);
 		//msg->velocity[1] = encoder_lines_to_radians(msg->velocity[1]);
 
 		joint_state_pub.publish(msg);
@@ -515,45 +462,19 @@ int kangaroo::evaluate_kangaroo_response( unsigned char address, unsigned char* 
 	return value;
 }
 
-void kangaroo::channelTest(int lim, int step, char channel){
-	for(int i=0;i<lim;i+=step){
-		set_channel_position(i, 128, channel, 10000);
-		ROS_INFO("Pos %i",i);
-	}
-	for(int i=lim;i>0;i-=step){
-		set_channel_position(i, 128, channel, 10000);
-		ROS_INFO("Pos %i",i);
-
-	}
-	for(int i=0;i>-lim;i-=step){
-		set_channel_position(i, 128, channel, 10000);
-		ROS_INFO("Pos %i",i);
-
-	}
-
-	for(int i=-lim;i<1;i+=step){
-		set_channel_position(i, 128, channel, 10000);
-		ROS_INFO("Pos %i",i);
-
-	}
-}
-
-
 inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
 {
 	return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution);
-
 }
 
-inline double kangaroo::encoder_lines_to_meters( int encoder_lines )
-{
-	//return (encoder_lines * circumference_of_wheels / encoder_lines_per_revolution_backwheel);
-}
+//inline double kangaroo::encoder_lines_to_meters( int encoder_lines )
+//{
+// 	return (encoder_lines * circumference_of_wheels / encoder_lines_per_revolution);
+//}
 
 inline int kangaroo::radians_to_encoder_lines( double radians )
 {
 	return (radians * encoder_lines_per_revolution / ( 2 * M_PI ));
-	//return 0;
 }
 
 //inline int kangaroo::meters_to_encoder_lines( double meters )

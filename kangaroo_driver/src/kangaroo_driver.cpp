@@ -22,7 +22,8 @@ ch2_joint_name( "speed_joint" ),
 fd( -1 ),
 nh( _nh ),
 nh_priv( _nh_priv ),
-encoder_lines_per_revolution(3200),
+encoder_lines_per_revolution_steer(16500),
+encoder_lines_per_revolution_speed(5500),
 hz(50)
 //diameter_of_wheels(.117475)
 //msg(new sensor_msgs::JointState)
@@ -192,9 +193,6 @@ void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 	channel_1_speed = radians_to_encoder_lines(channel_1_speed);
 	channel_2_speed = radians_to_encoder_lines(channel_2_speed);
 
-	channel_1_speed = radians_to_encoder_lines(channel_1_speed);
-	channel_2_speed = radians_to_encoder_lines(channel_2_speed);
-
 	boost::mutex::scoped_lock output_lock(output_mutex);
 	set_channel_speed(channel_1_speed, 128, '1');
 	set_channel_speed(channel_2_speed, 128, '2');
@@ -203,10 +201,13 @@ void kangaroo::JointTrajCB(const trajectory_msgs::JointTrajectoryPtr &msg)
 	double channel_1_position = msg->points[0].positions[ch1_idx];
 	double channel_2_position = msg->points[0].positions[ch2_idx];
 
+	channel_1_position = radians_to_encoder_lines(channel_1_position, ch1_idx);
+	channel_2_position = radians_to_encoder_lines(channel_2_position, ch2_idx);
+
 	// lock the output_mutex
 	boost::mutex::scoped_lock output_lock(output_mutex);
-	set_channel_position(1500*channel_1_position, 128, '1', 10000);
-	set_channel_position(1500*channel_2_position, 128, '2', 10000);
+	set_channel_position(channel_1_position, 128, '1', 4300);
+	set_channel_position(channel_2_position, 128, '2', 10000);
 }
 
 bool kangaroo::send_start_signals(unsigned char address)
@@ -293,9 +294,9 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 		msg->position[1] = get_parameter((unsigned char)128, '2', (unsigned char)1);	// position for ch2
 		//msg->velocity[1] = get_parameter((unsigned char)128, '2', (unsigned char)2);	// velocity for ch2
 
-		//msg->position[0] = encoder_lines_to_radians(msg->position[0]);
+		msg->position[0] = encoder_lines_to_radians(msg->position[0], 0);
 		//msg->velocity[0] = encoder_lines_to_radians(msg->velocity[0]);
-		//msg->position[1] = encoder_lines_to_radians(msg->position[1]);
+		msg->position[1] = encoder_lines_to_radians(msg->position[1], 1);
 		//msg->velocity[1] = encoder_lines_to_radians(msg->velocity[1]);
 
 		joint_state_pub.publish(msg);
@@ -462,9 +463,13 @@ int kangaroo::evaluate_kangaroo_response( unsigned char address, unsigned char* 
 	return value;
 }
 
-inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
+inline double kangaroo::encoder_lines_to_radians( int encoder_lines , int type )
 {
-	return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution);
+	if(type==0){
+		return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_steer);
+	}else if(type==1){
+		return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_speed);
+	}
 }
 
 //inline double kangaroo::encoder_lines_to_meters( int encoder_lines )
@@ -472,9 +477,13 @@ inline double kangaroo::encoder_lines_to_radians( int encoder_lines  )
 // 	return (encoder_lines * circumference_of_wheels / encoder_lines_per_revolution);
 //}
 
-inline int kangaroo::radians_to_encoder_lines( double radians )
+inline int kangaroo::radians_to_encoder_lines( double radians, int type )
 {
-	return (radians * encoder_lines_per_revolution / ( 2 * M_PI ));
+	if(type==0){
+		return (radians * encoder_lines_per_revolution_steer / ( 2 * M_PI ));
+	}else if(type==1){
+		return (radians * encoder_lines_per_revolution_speed / ( 2 * M_PI ));
+	}
 }
 
 //inline int kangaroo::meters_to_encoder_lines( double meters )

@@ -44,7 +44,8 @@ private:
 	// address of the serial port
 	std::string port;
 	// the number of lines of the encoder
-	int encoder_lines_per_revolution;
+	int encoder_lines_per_revolution_steer;
+	int encoder_lines_per_revolution_speed;
 	// the hertz that the JointState will be published at
 	int hz;
 	// the joints names for the two motors
@@ -67,8 +68,8 @@ private:
 	boost::mutex input_mutex;
 
 	// unit conversion
-	double encoder_lines_to_radians( int encoder_lines );
-	int radians_to_encoder_lines( double radians );
+	double encoder_lines_to_radians( int encoder_lines , int type );
+	int radians_to_encoder_lines( double radians , int type );
 };
 
 //}

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>kangaroo_driver</name>
+  <name>ack_kangaroo_driver</name>
   <version>0.0.0</version>
   <description>The robot_test package</description>
 

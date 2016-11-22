@@ -227,8 +227,16 @@ void kangaroo::AckCB( const ackermann_msgs::AckermannDriveStampedPtr &msg ){
 	steer_ang = stats.steering_angle;
 	veh_spd = stats.speed;
 
+	if(veh_spd>0 && veh_spd<0.5){
+		veh_spd=0.5;
+	}else if(veh_spd<0 && veh_spd>-0.5){
+		veh_spd=-0.5;
+	}
+
 	channel_1_position = radians_to_encoder_lines(steer_ang, 0);
 	channel_2_position = 2*radians_to_encoder_lines(veh_spd, 1);
+
+
 	// lock the output_mutex
 	boost::mutex::scoped_lock output_lock(output_mutex);
 	set_channel_position(channel_1_position, 128, '1', 4200);
@@ -322,7 +330,7 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 
 		msg->position[0] = encoder_lines_to_radians(msg->position[0], 0);
 		//msg->velocity[0] = encoder_lines_to_radians(msg->velocity[0]);
-		msg->position[1] = encoder_lines_to_radians(msg->position[1], 1);
+		//msg->position[1] = encoder_lines_to_radians(msg->position[1], 1);
 		//msg->velocity[1] = encoder_lines_to_radians(msg->velocity[1]);
 
 		joint_state_pub.publish(msg);
@@ -492,7 +500,9 @@ int kangaroo::evaluate_kangaroo_response( unsigned char address, unsigned char* 
 inline double kangaroo::encoder_lines_to_radians( int encoder_lines , int type )
 {
 	if(type==0){
-		return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_steer);
+		//return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_steer);
+		return (M_PI/180)*(encoder_lines/(5251/26));
+
 	}else if(type==1){
 		return (encoder_lines * 2 * M_PI / encoder_lines_per_revolution_speed);
 	}

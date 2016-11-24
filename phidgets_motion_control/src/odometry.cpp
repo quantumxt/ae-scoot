@@ -36,9 +36,12 @@
 #include <math.h>
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include "phidgets_motion_control/encoder_params.h"
 #include <std_msgs/Float64.h>
+
+#include <sensor_msgs/JointState.h>
 
 
 // used to prevent callbacks from accessing variables
@@ -59,11 +62,10 @@ int encoder_direction_left = 1;
 int encoder_direction_right = -1;
 
 // distance between the wheel centres
-double wheelbase_mm = 480;
+double wheelbase_mm = 165;
 
 // how many ticks in a rev for wheel
 double ticks_per_rev = 4000;
-
 
 // back wheel diameter
 double wheel_diam_mm = 180;
@@ -81,9 +83,9 @@ int previous_encoder_count_right = 0;
 double left_encoder_counts_per_mm = .1227;
 double right_encoder_counts_per_mm =.1227;
 
-ros::Subscriber left_encoder_sub;
-ros::Subscriber right_encoder_sub;
-ros::Subscriber encoders_sub;
+//Get angle of steering from kangaroo
+double phi = 0;
+
 
 // pose estimate
 double x = 0.0;
@@ -97,18 +99,28 @@ double delta_theta = 0.1;
 
 double rotation_offset=0;
 
+//Subscribers
+ros::Subscriber left_encoder_sub;
+ros::Subscriber right_encoder_sub;
+ros::Subscriber joint_state_sub;
+
+//Publishers
+ros::Publisher odom_pub;
+ros::Publisher vel_pub;
+
+
 // Update the left encoder count
 void update_encoder_left(int count)
 {
 	current_encoder_count_left = count * encoder_direction_left;
-	ROS_INFO("Left encoder count -> %f",current_encoder_count_left);
+	ROS_INFO("Left encoder count -> %i",current_encoder_count_left);
 }
 
 // Update the right encoder count
 void update_encoder_right(int count)
 {
 	current_encoder_count_right = count * encoder_direction_right;
-	ROS_INFO("Right encoder count -> %f",current_encoder_count_right);
+	ROS_INFO("Right encoder count -> %i",current_encoder_count_right);
 
 }
 
@@ -154,6 +166,16 @@ void rightEncoderCallback(const phidgets_motion_control::encoder_params::ConstPt
 	}
 }
 
+void jointStateCB(const sensor_msgs::JointState::ConstPtr& ptr)
+{
+	if (initialised) {
+		phi = ptr->position[0];
+		//ROS_INFO("Steer Angle -> %f",phi);
+
+	}
+}
+
+
 /*!
 * \param connects to a phidgets high speed encoder
 *        device which contains two or more encoders
@@ -164,16 +186,9 @@ bool subscribe_to_encoders_by_index()
 	bool success = true;
 	ros::NodeHandle n;
 	ros::NodeHandle nh("~");
-	/*std::string topic_path = "phidgets/";
-	nh.getParam("topic_path", topic_path);
-	std::string encodername = "encoder";
-	nh.getParam("encodername", encodername);
-	std::string encoder_topic_base = topic_path + encodername;
-	*/
-	std::string encodername = "encoder";
-	nh.getParam("encodername", encodername);
-	std::string encoder_topic_l = encodername + "/enc_L";
-	std::string encoder_topic_r = encodername + "/enc_R";
+
+	std::string encoder_topic_l = "enc_L";
+	std::string encoder_topic_r = "enc_R";
 
 	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
 	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
@@ -181,32 +196,30 @@ bool subscribe_to_encoders_by_index()
 	return(success);
 }
 
-
-
 void update_velocities(double dt) {
+	int deltaLeft = current_encoder_count_left - previous_encoder_count_left;
+	int deltaRight = current_encoder_count_right - previous_encoder_count_right;
 
-	if((current_encoder_count_left - previous_encoder_count_left) == 0 &&
-	(current_encoder_count_right - previous_encoder_count_right) == 0) {
+	if(deltaLeft == 0 && deltaRight == 0) {
 		delta_x = 0;
 		delta_y = 0;
 		delta_theta = 0;
-		//ROS_INFO("skip1");
+		//ROS_INFO("No motion);
 		return;
 	}
 
 	double wheel_base_m = (wheelbase_mm / 1000);
-
 	double friction_coefficient = 0;
 
 	//double left_encoder_counts_per_m = (left_encoder_counts_per_mm / 1000);
 	//double right_encoder_counts_per_m = (right_encoder_counts_per_mm / 1000);
 
 	double wheel_diam_m = (wheel_diam_mm / 1000);
-	double left_wheel_travel = (current_encoder_count_left - previous_encoder_count_left) * ((wheel_diam_m * M_PI) / ticks_per_rev);
-	double right_wheel_travel = (current_encoder_count_right - previous_encoder_count_right) * ((wheel_diam_m * M_PI) / ticks_per_rev);
+	double left_wheel_travel = deltaLeft * ((wheel_diam_m * M_PI) / ticks_per_rev);
+	double right_wheel_travel = deltaRight * ((wheel_diam_m * M_PI) / ticks_per_rev);
 
-	ROS_INFO("Left velocity -> %f",left_wheel_travel);
-	ROS_INFO("Right velocity -> %f",right_wheel_travel);
+	ROS_INFO("Left dist travelled -> %f",left_wheel_travel);
+	ROS_INFO("Right dist travelled -> %f",right_wheel_travel);
 
 	if( (left_wheel_travel - right_wheel_travel) == 0){
 		delta_x = 0;
@@ -216,9 +229,7 @@ void update_velocities(double dt) {
 		return;
 	}
 
-	if((current_encoder_count_left - previous_encoder_count_left) ==
-	(current_encoder_count_right - previous_encoder_count_right)) {
-
+	if(deltaLeft == deltaRight) {
 		delta_x = sin(theta) * right_wheel_travel;
 		delta_y = cos(theta) * right_wheel_travel;
 		delta_theta = 0;
@@ -226,9 +237,13 @@ void update_velocities(double dt) {
 		return;
 	}
 
-	double pivot_angl = ( ( right_wheel_travel - left_wheel_travel ) / wheel_base_m ) * (1 - friction_coefficient);
+	//Calculate velocities using ackermann's Steering
 
-	double pivot_center = ( ( wheel_base_m / 2 ) *  ( ( left_wheel_travel + right_wheel_travel ) / ( left_wheel_travel - right_wheel_travel ) ) ) * (1 + friction_coefficient);
+	double pivot_angl = ( ( right_wheel_travel - left_wheel_travel ) / wheel_base_m ) * (1 - friction_coefficient);
+	//double pivot_center = ( ( wheel_base_m / 2 ) *  ( ( left_wheel_travel + right_wheel_travel ) / ( left_wheel_travel - right_wheel_travel ) ) ) * (1 + friction_coefficient);
+
+	//double pivot_angl = phi;
+	double pivot_center = wheel_base_m/2;
 
 	double x_instantanous_center_of_curvature = x - ( pivot_center * cos(theta) );
 	double y_instantanous_center_of_curvature = y + ( pivot_center * sin(theta) );
@@ -286,6 +301,10 @@ int main(int argc, char** argv)
 	ros::NodeHandle n;
 	ros::NodeHandle nh("~");
 
+	// Encoders topic
+	std::string encoder_topic_l = "enc_L";
+	std::string encoder_topic_r = "enc_R";
+
 	std::string name = "odom";
 	nh.getParam("name", name);
 
@@ -297,14 +316,16 @@ int main(int argc, char** argv)
 	n.setParam(reset_topic, false);
 
 	// TODO paramaterize num to keep in buffer
-	tf::TransformBroadcaster odom_broadcaster;
+	tf2_ros::TransformBroadcaster odom_broadcaster;
+
+	//Subscribers
+	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
+	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
+	joint_state_sub = n.subscribe("joint_state",1,jointStateCB);
 
 	//Publishers
-	ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>(name, 100);
-
-	//Vehicle velocity
-	ros::Publisher vel_pub = n.advertise<std_msgs::Float64>("veh_vel",100);
-
+	odom_pub = n.advertise<nav_msgs::Odometry>(name, 100);
+	vel_pub = n.advertise<std_msgs::Float64>("veh_vel",100);	//Vehicle velocity
 
 	// get encoder indexes
 	nh.getParam("encoderindexleft", encoder_index_left);
@@ -313,25 +334,18 @@ int main(int argc, char** argv)
 	nh.getParam("encoderdirectionleft", encoder_direction_left);
 	nh.getParam("encoderdirectionright", encoder_direction_right);
 
+	nh.getParam("encoder_topic_l", encoder_topic_l);
+	nh.getParam("encoder_topic_r", encoder_topic_r);
+
 	nh.getParam("ticksperrev", ticks_per_rev);
-
 	nh.getParam("wheeldiammm", wheel_diam_mm);
-
-
-	// connect to the encoders
-	std::string encodername = "encoder";
-	nh.getParam("encodername", encodername);
-	std::string encoder_topic_l = encodername + "/enc_L";
-	std::string encoder_topic_r = encodername + "/enc_R";
-
-	left_encoder_sub = n.subscribe(encoder_topic_l,1,leftEncoderCallback);
-	right_encoder_sub = n.subscribe(encoder_topic_r,1,rightEncoderCallback);
 
 	// Setup nav and odom stuff
 	std::string base_link = "base_link";
-	//nh.getParam("base_link", base_link);
+	nh.getParam("base_link", base_link);
 	std::string frame_id = "odom";
-	/*	nh.getParam("frame_id", frame_id);
+	nh.getParam("frame_id", frame_id);
+	/*
 	nh.getParam("countspermmleft",
 	left_encoder_counts_per_mm);
 	nh.getParam("countspermmright",
@@ -342,11 +356,11 @@ int main(int argc, char** argv)
 	nh.getParam("frictioncoefficient", friction_coefficient);
 
 	// Get verbosity level
-	nh.getParam("verbose", verbose);*/
+	nh.getParam("verbose", verbose);
 
 	wheelbase_mm = 305;
-	//left_encoder_counts_per_mm = 0.1227;
-	//right_encoder_counts_per_mm = 0.1227;
+	left_encoder_counts_per_mm = 0.1227;
+	right_encoder_counts_per_mm = 0.1227;
 	left_encoder_counts_per_mm = 0.1;
 	right_encoder_counts_per_mm = 0.1;
 	encoder_index_left = 0;
@@ -356,13 +370,10 @@ int main(int argc, char** argv)
 	ticks_per_rev = 3200;
 	wheel_diam_mm = 180;
 	friction_coefficient = 0.1;
+	*/
 
 	int frequency = 10;
 	//nh.getParam("frequency", frequency);
-
-	geometry_msgs::TransformStamped odom_trans;
-	odom_trans.header.frame_id = frame_id;
-	odom_trans.child_frame_id = base_link;
 
 	ros::Time current_time, last_time;
 	current_time = ros::Time::now();
@@ -407,7 +418,6 @@ int main(int argc, char** argv)
 		y += delta_y;
 		theta += -delta_theta;
 
-
 		//ROS_INFO("dx=%f, dy=%f, dtheta=%f", delta_x, delta_y, delta_theta);
 		//ROS_INFO("x=%f, y=%f, theta=%f", x, y, theta);
 		// get Quaternion from rpy
@@ -415,6 +425,10 @@ int main(int argc, char** argv)
 		tf::createQuaternionMsgFromYaw(theta);
 
 		// first, we'll publish the transform over tf
+		geometry_msgs::TransformStamped odom_trans;
+		odom_trans.header.frame_id = frame_id;
+		odom_trans.child_frame_id = base_link;
+
 		odom_trans.header.stamp = current_time;
 
 		odom_trans.transform.translation.x = x;
@@ -423,7 +437,8 @@ int main(int argc, char** argv)
 		odom_trans.transform.rotation = odom_quat;
 
 		// send the transform
-		odom_broadcaster.sendTransform(odom_trans);
+		//odom_broadcaster.sendTransform(odom_trans);
+
 
 		// publish the odometry
 		nav_msgs::Odometry odom;
@@ -447,17 +462,15 @@ int main(int argc, char** argv)
 
 		// publish odom
 		odom_pub.publish(odom);
-		
+
 		//Get resultant_vel
 		std_msgs::Float64 rvel;
 		rvel.data = sqrt(pow(delta_x / dt,2)+pow(delta_y / dt, 2));		//	m/s
 		//rvel.data = sqrt(pow((delta_x/1000) / (dt*3600),2)+pow((delta_y/1000) / (dt*3600), 2));	//	km/h
 		if(delta_x<0)
-			rvel.data = -rvel.data;
+		rvel.data = -rvel.data;
 		//ROS_INFO("Velocity: %f",rvel.data);
 		vel_pub.publish(rvel);
-
-
 
 		last_time = current_time;
 		ros::spinOnce();

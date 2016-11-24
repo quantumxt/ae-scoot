@@ -241,8 +241,8 @@ int main(int argc, char* argv[])
 
         //std::string topic_steer_encL = topic_path + name + "/enc_L";
 
-        std::string topic_steer_encL = name + "/enc_L";
-        std::string topic_steer_encR = name+ "/enc_R";
+        std::string topic_steer_encL = "enc_L";
+        std::string topic_steer_encR = "enc_R";
 
         encoder_pub_L = n.advertise<phidgets_motion_control::encoder_params>(topic_steer_encL,
 												  buffer_length);

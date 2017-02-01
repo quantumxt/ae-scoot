@@ -1,0 +1,76 @@
+<launch>
+
+  <arg name="drive_speed" default="0.25" />
+  <arg name="turn_speed" default="0.25" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="cmd_topic" default="cmd_vel" />
+
+  <arg name="host" default="192.168.2.102" />
+
+
+  <node pkg="joy" type="joy_node" name="joy_node">
+    <param name="dev" value="$(arg joy_dev)" />
+    <param name="deadzone" value="0.3" />
+  </node>
+
+  <node pkg="teleop_twist_joy" type="teleop_node" name="teleop_node">
+    <param name="turn_scale" value="$(arg turn_speed)" />
+    <param name="drive_scale" value="$(arg drive_speed)" />
+    <remap from="cmd_vel" to="$(arg cmd_topic)" />
+  </node>
+
+  <!--Encoder-->
+  <!-- <node pkg="phidgets_motion_control" type="high_speed_encoder" name="wheel_encoder" /> -->
+  <!--Odom -->
+  <!-- <node pkg="phidgets_motion_control" type="odometry" name="odometry" output="screen"/> -->
+
+
+<!-- Hokuyo Lidar-->
+<node pkg="urg_node" type="urg_node" name="urg_node" >
+  <rosparam>
+    publish_intensity: true
+    angle_min: -2.0
+    angle_max: 2.0
+    cluster: 1
+    skip: 0
+    ip_address: 192.168.2.110
+    ip_port: 10940
+    frame_id: laser
+    calibrate_time: true
+    time_offset: 0.0
+    publish_multiecho: false
+
+  </rosparam>
+  <!--<remap from="scan" to="scanH" />-->
+</node>
+<!-- TFs -->
+<!-- Hokuyo Lidar tf -->
+<node pkg="tf" type="static_transform_publisher" name="base_link_to_h_laser" args="0.47 -0.075 0.29 0.06981 0 0 base_link laser 100" />
+<!-- IMU -->
+<node pkg="tf" type="static_transform_publisher" name="base_link_to_IMU" args="0.0 0.0 0.02 1.57 0 1.57 base_link IMU 100" />
+
+<!-- IMU -->
+<arg name="frame_id" default="/imu"/>
+<arg name="imu_path" default="/dev/ttyUSB0"/>
+<arg name="imu_baud" default="115200"/>
+
+<arg name="frame_local" default="ENU"/>
+
+<node pkg="xsens_driver" type="mtnode.py" name="xsens_driver" output="screen" >
+  <param name="frame_id" value="$(arg frame_id)"/>
+  <param name="device" value="$(arg imu_path)"/>
+  <param name="baudrate" value="$(arg imu_baud)"/>
+  <param name="frame_local" value="$(arg frame_local)"/>
+  <remap from="/imu/data" to="imu_data"/>
+
+</node>
+
+<!-- SLAM -->
+<node name="cartographer_node" pkg="cartographer_ros"
+    type="cartographer_node"
+    output="screen">
+  <remap from="scan" to="/base_scan" />
+</node>
+
+
+</launch>
